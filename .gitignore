@@ -1,0 +1,33 @@
+# ── Never commit local session/agent state ───────────────────────────
+.remember/
+.claude/
+*.log
+
+# ── Secrets: nothing here should ever exist, but fail closed ─────────
+.env
+.env.*
+*.pem
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
+secrets.json
+**/Secrets.swift
+token.txt
+
+# ── Xcode / SwiftPM build output ─────────────────────────────────────
+# BarRepo.xcodeproj is generated from project.yml by `make generate`.
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
+.build/
+.swiftpm/
+*.xcuserstate
+*.xcscmblueprint
+Packages/
+Package.resolved
+
+# ── macOS ────────────────────────────────────────────────────────────
+.DS_Store
