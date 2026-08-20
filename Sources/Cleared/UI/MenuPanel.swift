@@ -7,6 +7,7 @@ struct MenuPanel: View {
     @Bindable var model: AppModel
     @State private var showingSettings = false
     @State private var dispatchTarget: RepoRef?
+    @State private var queueHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -122,8 +123,14 @@ struct MenuPanel: View {
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 6)
+            .measureHeight()
         }
-        .frame(maxHeight: 460)
+        // Grow with the queue, stop at maxQueueHeight, scroll past that.
+        .frame(height: min(max(queueHeight, 1), Theme.maxQueueHeight))
+        .scrollBounceBehavior(.basedOnSize)
+        .onPreferenceChange(ContentHeightKey.self) { height in
+            queueHeight = height
+        }
 
         Divider()
         footer

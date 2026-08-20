@@ -20,15 +20,23 @@ struct ActionRow<Trailing: View>: View {
                 .fill(dot)
                 .frame(width: 7, height: 7)
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 1) {
+                // Tail truncation, not middle: the front of a PR title carries
+                // the conventional-commit type and scope, which is the part
+                // worth keeping when it doesn't fit.
                 Text(title)
                     .font(.system(size: 12))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                // Middle truncation here, because a subtitle is owner/repo ·
+                // branch and both ends identify it.
                 Text(subtitle)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -48,7 +56,7 @@ struct ActionRow<Trailing: View>: View {
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .onTapGesture { open(openURL) }
-        .help("Open on GitHub")
+        .help("\(title)\n\(subtitle)\n\nClick to open on GitHub")
     }
 }
 

@@ -160,3 +160,29 @@ struct ErrorMessageTests {
             .localizedDescription.contains("Reconnect"))
     }
 }
+
+
+#if DEBUG
+@Suite("Preview harness arguments")
+@MainActor
+struct PreviewArgumentTests {
+    typealias Fixture = PreviewHarness.Fixture
+
+    @Test("selects a fixture by case name, not by display label", arguments: [
+        ("full", Fixture.full), ("overflow", Fixture.overflow), ("empty", Fixture.empty),
+    ])
+    func selectsByKey(argument: String, expected: Fixture) {
+        #expect(Fixture.fromCommandLine(["Cleared", "--ui-preview", argument]) == expected)
+    }
+
+    @Test("falls back to the full queue when the name is absent or unknown", arguments: [
+        ["Cleared"],
+        ["Cleared", "--ui-preview"],
+        ["Cleared", "--ui-preview", "nonsense"],
+        ["Cleared", "--ui-preview", "All clear"],
+    ])
+    func fallsBack(args: [String]) {
+        #expect(Fixture.fromCommandLine(args) == .full)
+    }
+}
+#endif

@@ -45,6 +45,9 @@ final class AppModel {
     private let client = GitHubClient()
     private var pollTask: Task<Void, Never>?
     private let settings = Settings.shared
+    /// Set by the preview harness so seeded state is never overwritten by a
+    /// live refresh (which, with no token, would blank the rate limit).
+    private var isPreview = false
 
     // MARK: - Derived
 
@@ -153,6 +156,7 @@ final class AppModel {
     }
 
     func refresh() async {
+        guard !isPreview else { return }
         guard case .ready = phase, !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -267,4 +271,22 @@ final class AppModel {
     }
 
     func isBusy(_ id: String) -> Bool { busyItems.contains(id) }
+
+#if DEBUG
+    /// Seeds the model from fixtures and parks it in `.ready` without touching
+    /// the network. Used by SwiftUI previews and the `--ui-preview` harness.
+    func loadSample(empty: Bool = false, overflow: Bool = false) {
+        isPreview = true
+        pollTask?.cancel()
+        pollTask = nil
+        login = "octocat"
+        repos = SampleData.repos
+        approvals = empty ? [] : SampleData.approvals.sorted { $0.waitingSince < $1.waitingSince }
+        pullRequests = empty ? [] : (overflow ? SampleData.manyPullRequests : SampleData.pullRequests)
+        failures = empty ? [] : SampleData.failures
+        rateLimit = RateLimit(remaining: 4_812, limit: 5_000, resetsAt: Date().addingTimeInterval(2_400))
+        lastRefresh = Date()
+        phase = .ready
+    }
+#endif
 }
