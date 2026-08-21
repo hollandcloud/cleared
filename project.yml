@@ -6,14 +6,24 @@ options:
   createIntermediateGroups: true
   groupSortPosition: top
 
+configFiles:
+  Debug: Local.xcconfig
+  Release: Local.xcconfig
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     MARKETING_VERSION: "0.3.0"
     CURRENT_PROJECT_VERSION: "1"
-    CODE_SIGN_STYLE: Automatic
-    CODE_SIGN_IDENTITY: "-"
+    # Ad-hoc by default so anyone can clone and build with no Apple account.
+    # Override both in Local.xcconfig (gitignored) for a stable signature that
+    # keeps the Keychain entry valid across rebuilds — see Local.xcconfig.example.
+    # CLEARED_SIGN_* are intentionally left undefined here — a value set in
+    # project.yml would outrank Local.xcconfig and the override would never
+    # apply. The :default= operator supplies the ad-hoc fallback instead.
+    CODE_SIGN_IDENTITY: "$(CLEARED_SIGN_IDENTITY:default=-)"
+    CODE_SIGN_STYLE: "$(CLEARED_SIGN_STYLE:default=Automatic)"
     ENABLE_HARDENED_RUNTIME: NO
     DEAD_CODE_STRIPPING: YES
 

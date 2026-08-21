@@ -44,7 +44,17 @@ enum Keychain {
         }
     }
 
-    static func get(account: String) -> String? {
+    /// Why a read came back empty. "Nothing saved" and "saved but unreadable"
+    /// look identical to a caller that only gets an optional, and they need
+    /// completely different messages: one asks you to connect, the other tells
+    /// you the system denied access.
+    enum Lookup {
+        case found(String)
+        case notFound
+        case denied(OSStatus)
+    }
+
+    static func lookup(account: String) -> Lookup {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -53,11 +63,31 @@ enum Keychain {
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data,
-              let string = String(data: data, encoding: .utf8)
-        else { return nil }
-        return string
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+
+        switch status {
+        case errSecSuccess:
+            guard let data = item as? Data, let string = String(data: data, encoding: .utf8) else {
+                return .notFound
+            }
+            return .found(string)
+        case errSecItemNotFound:
+            return .notFound
+        default:
+            // errSecAuthFailed / errSecInteractionNotAllowed land here. The most
+            // common cause is a rebuild: an ad-hoc signature changes identity,
+            // so the ACL on the existing item no longer matches this binary.
+            return .denied(status)
+        }
+    }
+
+    static func get(account: String) -> String? {
+        if case .found(let value) = lookup(account: account) { return value }
+        return nil
+    }
+
+    static func describe(_ status: OSStatus) -> String {
+        (SecCopyErrorMessageString(status, nil) as String?) ?? "Keychain error \(status)"
     }
 
     @discardableResult

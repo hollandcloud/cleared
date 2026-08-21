@@ -103,11 +103,33 @@ that see one PR a month get picked up without being added by hand.
 ## Development
 
 ```sh
-make build     # debug build
-make test      # 15 tests, 7 suites
-make scan      # refuse to commit anything token-shaped
+make build                      # debug build
+make test                       # 17 tests, 8 suites
+make preview                    # render the panel against sample data
+make preview FIXTURE=overflow   # ... with enough rows to scroll
+make preview FIXTURE=empty      # ... the all-clear state
+make scan                       # refuse to commit anything token-shaped
 make clean
 ```
+
+### Working on the panel
+
+Laying out the queue against live GitHub means waiting for a deployment to
+actually be held — the rare event the whole app exists to catch. `make preview`
+opens the panel in an ordinary window with fixtures covering the shapes that
+matter: a title long enough to wrap, a gate spanning two environments, and
+enough rows to push the queue past its height cap.
+
+### Signing and the Keychain
+
+Cleared signs **ad-hoc** by default so anyone can clone and build without an
+Apple account. The cost is that every rebuild produces a new app identity, which
+invalidates the access list on the Keychain entry holding your token — so you
+have to reconnect after each build. The sign-in screen says so when it detects
+that case rather than pretending no token was ever saved.
+
+To make the signature stable, copy `Local.xcconfig.example` to `Local.xcconfig`
+(gitignored) and set an identity from `security find-identity -v -p codesigning`.
 
 Install the pre-commit secret scan with `./Scripts/install-hooks.sh`.
 

@@ -17,6 +17,22 @@ struct ConnectView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // A saved-but-unreadable token is not the same as no token, and
+            // silently showing the sign-in form for it is a lie.
+            if case .denied(let status) = TokenStore.status() {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("A saved token exists but this build can't read it", systemImage: "lock.trianglebadge.exclamationmark")
+                        .font(.system(size: 11, weight: .medium))
+                    Text("\(Keychain.describe(status)). Rebuilding changes the app's ad-hoc signature, which invalidates the Keychain entry's access list. Connecting again replaces it.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(8)
+                .background(Theme.hold.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+            }
+
             Button {
                 isWorking = true
                 Task {

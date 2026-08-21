@@ -21,6 +21,12 @@ struct TokenStore: Sendable {
         Keychain.delete(account: account)
     }
 
+    /// Distinguishes "never connected" from "connected, but this build cannot
+    /// read the saved token" so the UI can say which one happened.
+    static func status() -> Keychain.Lookup {
+        Keychain.lookup(account: account)
+    }
+
     /// Everything Cleared ever shows about a token. Never the token.
     static func fingerprint(_ token: String) -> String {
         let prefix = token.prefix(4)

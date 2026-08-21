@@ -31,3 +31,6 @@ Package.resolved
 
 # ── macOS ────────────────────────────────────────────────────────────
 .DS_Store
+
+# Optional local signing overrides (see Local.xcconfig.example)
+Local.xcconfig

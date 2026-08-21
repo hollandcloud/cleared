@@ -1,0 +1,14 @@
+// Copy to Local.xcconfig (gitignored) for a stable code signature.
+//
+// Cleared signs ad-hoc by default so anyone can clone and build without an
+// Apple account. The cost is that every rebuild produces a new app identity,
+// which invalidates the Keychain entry holding your token — you have to
+// reconnect after each build.
+//
+// Setting a real identity makes the signature stable and the token stick.
+// List yours with:  security find-identity -v -p codesigning
+// The team is the OU field of that certificate.
+//
+// CLEARED_SIGN_IDENTITY = Apple Development: Your Name (XXXXXXXXXX)
+// CLEARED_SIGN_STYLE = Manual
+// DEVELOPMENT_TEAM = YOURTEAMID

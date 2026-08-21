@@ -28,6 +28,14 @@ struct MenuBarLabel: View {
     }
 
     private var accessibilityText: String {
+        // The icon already distinguishes these; the label has to agree with it,
+        // or VoiceOver says "all clear" over a warning triangle.
+        switch model.phase {
+        case .needsToken: return "Cleared. Not connected to GitHub."
+        case .connecting: return "Cleared. Connecting."
+        case .failed: return "Cleared. Couldn't reach GitHub."
+        case .ready: break
+        }
         if model.approvals.isEmpty && model.readyToMerge.isEmpty { return "Cleared. All clear." }
         var parts: [String] = []
         if !model.approvals.isEmpty { parts.append("\(model.approvals.count) holding") }
