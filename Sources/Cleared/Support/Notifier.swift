@@ -78,7 +78,10 @@ final class Notifier: NSObject {
     }
 
     func requestAuthorizationIfNeeded() async {
-        guard let center else { return }
+        guard !AppEnvironment.isRunningTests else { return }
+        // Fetched here rather than through `center`: a value read off this
+        // actor cannot be handed to the system's async call under Swift 6.1.
+        let center = UNUserNotificationCenter.current()
         do {
             authorized = try await center.requestAuthorization(options: [.alert, .sound])
         } catch {
