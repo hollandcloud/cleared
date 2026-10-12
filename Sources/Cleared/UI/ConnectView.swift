@@ -17,6 +17,16 @@ struct ConnectView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if let notice = model.connectNotice {
+                Label(notice, systemImage: "key.slash")
+                    .font(.system(size: 11))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.hold.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+            }
+
             // A saved-but-unreadable token is not the same as no token, and
             // silently showing the sign-in form for it is a lie.
             if case .denied(let status) = TokenStore.status() {
@@ -69,7 +79,7 @@ struct ConnectView: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 11, design: .monospaced))
                     .onSubmit(submit)
-                Text("Needs the repo and workflow scopes. Stored in your login Keychain — never written to disk in the clear.")
+                Text("Needs the repo scope. Stored in your login Keychain — never written to disk in the clear.")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -114,6 +124,7 @@ struct FailureView: View {
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("Try again") { Task { await model.connect() } }
+                    .keyboardShortcut(.defaultAction)
                     .controlSize(.small)
                 Button("Disconnect") { model.signOut() }
                     .controlSize(.small)

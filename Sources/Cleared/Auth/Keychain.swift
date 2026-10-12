@@ -34,13 +34,15 @@ enum Keychain {
         switch status {
         case errSecSuccess:
             return
-        case errSecItemNotFound:
+        default:
+            // Not found — or found but closed to this build, which is what a
+            // rebuild with a new signature leaves behind. Either way the fix
+            // is a fresh item, so clear anything in the way and add one.
+            if status != errSecItemNotFound { SecItemDelete(query as CFDictionary) }
             var insert = query
             insert.merge(attributes) { current, _ in current }
             let addStatus = SecItemAdd(insert as CFDictionary, nil)
             guard addStatus == errSecSuccess else { throw Failure.unexpectedStatus(addStatus) }
-        default:
-            throw Failure.unexpectedStatus(status)
         }
     }
 

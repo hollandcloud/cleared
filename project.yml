@@ -16,8 +16,8 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    MARKETING_VERSION: "0.3.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.4.0"
+    CURRENT_PROJECT_VERSION: "2"
     # Ad-hoc by default so anyone can clone and build with no Apple account.
     # Override both in Local.xcconfig (gitignored) for a stable signature that
     # keeps the Keychain entry valid across rebuilds — see Local.xcconfig.example.
@@ -26,8 +26,14 @@ settings:
     # apply. The :default= operator supplies the ad-hoc fallback instead.
     CODE_SIGN_IDENTITY: "$(CLEARED_SIGN_IDENTITY:default=-)"
     CODE_SIGN_STYLE: "$(CLEARED_SIGN_STYLE:default=Automatic)"
-    ENABLE_HARDENED_RUNTIME: NO
     DEAD_CODE_STRIPPING: YES
+  configs:
+    # Required for notarization. Release only: the unit tests are injected
+    # into a Debug build, which library validation would refuse.
+    Debug:
+      ENABLE_HARDENED_RUNTIME: NO
+    Release:
+      ENABLE_HARDENED_RUNTIME: YES
 
 targets:
   Cleared:
@@ -35,12 +41,13 @@ targets:
     platform: macOS
     sources:
       - path: Sources/Cleared
+      - path: Resources/Assets.xcassets
     settings:
       base:
         INFOPLIST_FILE: Resources/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: net.hlnd.Cleared
         PRODUCT_NAME: Cleared
-        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         COMBINE_HIDPI_IMAGES: YES
         LD_RUNPATH_SEARCH_PATHS: ["$(inherited)", "@executable_path/../Frameworks"]
 

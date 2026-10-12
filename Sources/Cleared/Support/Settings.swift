@@ -20,7 +20,7 @@ final class Settings {
         static let notifyOnHold = "notifyOnHold"
         static let notifyOnFailure = "notifyOnFailure"
         static let showFailures = "showFailures"
-        static let confirmMerge = "confirmBeforeMerge"
+        static let confirmActions = "confirmActions"
     }
 
     private let defaults: UserDefaults
@@ -36,7 +36,7 @@ final class Settings {
             Key.notifyOnHold: true,
             Key.notifyOnFailure: false,
             Key.showFailures: true,
-            Key.confirmMerge: false,
+            Key.confirmActions: false,
         ])
     }
 
@@ -72,9 +72,14 @@ final class Settings {
         set { withMutation(keyPath: \.pinnedRepos) { defaults.set(newValue, forKey: Key.pinned) } }
     }
 
-    var mergeMethod: String {
-        get { access(keyPath: \.mergeMethod); return defaults.string(forKey: Key.mergeMethod) ?? "squash" }
-        set { withMutation(keyPath: \.mergeMethod) { defaults.set(newValue, forKey: Key.mergeMethod) } }
+    /// The method to merge with where a repository allows it. A repository
+    /// that does not falls back to its own default.
+    var mergeMethod: MergeMethod {
+        get {
+            access(keyPath: \.mergeMethod)
+            return defaults.string(forKey: Key.mergeMethod).flatMap(MergeMethod.init(rawValue:)) ?? .squash
+        }
+        set { withMutation(keyPath: \.mergeMethod) { defaults.set(newValue.rawValue, forKey: Key.mergeMethod) } }
     }
 
     var notifyOnHold: Bool {
@@ -92,15 +97,35 @@ final class Settings {
         set { withMutation(keyPath: \.showFailures) { defaults.set(newValue, forKey: Key.showFailures) } }
     }
 
-    var confirmBeforeMerge: Bool {
-        get { access(keyPath: \.confirmBeforeMerge); return defaults.bool(forKey: Key.confirmMerge) }
-        set { withMutation(keyPath: \.confirmBeforeMerge) { defaults.set(newValue, forKey: Key.confirmMerge) } }
+    /// Clear and Merge take a second click when this is on. Off by default:
+    /// one click is the point, and both buttons only appear when GitHub
+    /// already agrees the action is allowed.
+    var confirmActions: Bool {
+        get { access(keyPath: \.confirmActions); return defaults.bool(forKey: Key.confirmActions) }
+        set { withMutation(keyPath: \.confirmActions) { defaults.set(newValue, forKey: Key.confirmActions) } }
     }
 
-    func toggleExclusion(_ repo: RepoRef) {
+    func setExcluded(_ excluded: Bool, _ repoID: String) {
         var set = excludedRepos
-        if set.contains(repo.id) { set.remove(repo.id) } else { set.insert(repo.id) }
+        if excluded { set.insert(repoID) } else { set.remove(repoID) }
         excludedRepos = set
+    }
+
+    /// Pins a repository so it is watched however quiet it has been. Returns
+    /// false when the text is not `owner/name`.
+    @discardableResult
+    func pin(_ fullName: String) -> Bool {
+        guard let repo = RepoRef(fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines)) else { return false }
+        if !pinnedRepos.contains(where: { $0.caseInsensitiveCompare(repo.id) == .orderedSame }) {
+            pinnedRepos.append(repo.id)
+        }
+        // Pinning something that was ignored means it is wanted after all.
+        setExcluded(false, repo.id)
+        return true
+    }
+
+    func unpin(_ repoID: String) {
+        pinnedRepos.removeAll { $0 == repoID }
     }
 }
 

@@ -49,3 +49,49 @@ extension View {
         )
     }
 }
+
+/// Reports when the window hosting a view is shown or hidden.
+struct WindowVisibility: NSViewRepresentable {
+    let onChange: (Bool) -> Void
+
+    func makeNSView(context: Context) -> Probe { Probe(onChange: onChange) }
+
+    func updateNSView(_ probe: Probe, context: Context) { probe.onChange = onChange }
+
+    final class Probe: NSView {
+        var onChange: (Bool) -> Void
+        private var observer: (any NSObjectProtocol)?
+        private var lastReported: Bool?
+
+        init(onChange: @escaping (Bool) -> Void) {
+            self.onChange = onChange
+            super.init(frame: .zero)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            observer = nil
+            if let window {
+                observer = NotificationCenter.default.addObserver(
+                    forName: NSWindow.didChangeOcclusionStateNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.report() }
+                }
+            }
+            report()
+        }
+
+        private func report() {
+            let visible = window.map { $0.isVisible && $0.occlusionState.contains(.visible) } ?? false
+            guard visible != lastReported else { return }
+            lastReported = visible
+            onChange(visible)
+        }
+    }
+}
