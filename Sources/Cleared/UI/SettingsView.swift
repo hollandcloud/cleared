@@ -53,7 +53,9 @@ struct SettingsView: View {
 
     private var general: some View {
         Section {
-            Toggle("Launch at login", isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin))
+            // A closure, not `set: setLaunchAtLogin`: handing Binding a method
+            // reference crashes the Swift 6.1–6.3 compilers in IR generation.
+            Toggle("Launch at login", isOn: Binding(get: { launchAtLogin }, set: { setLaunchAtLogin($0) }))
                 .disabled(!LoginItem.isInstalled && !launchAtLogin)
             if let loginItemError {
                 caption(loginItemError)
