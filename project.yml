@@ -6,9 +6,11 @@ options:
   createIntermediateGroups: true
   groupSortPosition: top
 
+# Cleared.xcconfig optionally includes Local.xcconfig. Pointing at
+# Local.xcconfig directly would fail on every clone that does not have one.
 configFiles:
-  Debug: Local.xcconfig
-  Release: Local.xcconfig
+  Debug: Cleared.xcconfig
+  Release: Cleared.xcconfig
 
 settings:
   base:
