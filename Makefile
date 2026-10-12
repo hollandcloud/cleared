@@ -30,10 +30,12 @@ install: release
 
 ## Render the panel in a normal window against sample data.
 ## FIXTURE=full|overflow|empty
+## Opens a second instance and only ever closes an earlier preview, so an
+## installed copy that is running keeps watching.
 preview: build
-	@pkill -f 'Cleared.app/Contents/MacOS/Cleared' 2>/dev/null || true
-	@open "$$(xcodebuild -project Cleared.xcodeproj -scheme Cleared -configuration Debug \
-		-showBuildSettings 2>/dev/null | awk '/BUILT_PRODUCTS_DIR/{print $$3}')/Cleared.app" \
+	@pkill -f 'Cleared.app/Contents/MacOS/Cleared --ui-preview' 2>/dev/null || true
+	@open -n "$$(xcodebuild -project Cleared.xcodeproj -scheme Cleared -configuration Debug \
+		-showBuildSettings 2>/dev/null | sed -n 's/^ *BUILT_PRODUCTS_DIR = //p')/Cleared.app" \
 		--args --ui-preview $${FIXTURE:-full}
 
 ## Redraw the app icon at every size from Scripts/make-icon.swift.
