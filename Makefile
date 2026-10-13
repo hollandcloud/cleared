@@ -1,4 +1,4 @@
-.PHONY: generate build test run install preview icon release dist scan clean
+.PHONY: generate build test run install preview icon release dist appstore appstore-build scan clean
 
 RELEASE_APP := build/Build/Products/Release/Cleared.app
 INSTALL_DIR ?= /Applications
@@ -45,6 +45,17 @@ icon:
 ## Build a Developer ID-signed, notarized zip in dist/. See Scripts/release.sh.
 dist:
 	@./Scripts/release.sh
+
+## Archive for the Mac App Store and export the signed package to
+## dist/appstore/. Uploads nothing. See Scripts/appstore.sh.
+appstore:
+	@./Scripts/appstore.sh
+
+## Build the sandboxed App Store configuration without archiving. Works with
+## no signing set up, so CI uses it to keep that configuration compiling.
+appstore-build: generate
+	xcodebuild -project Cleared.xcodeproj -scheme Cleared -configuration AppStore \
+		-derivedDataPath build/appstore build
 
 ## Fail loudly if anything token-shaped is about to be committed.
 scan:
