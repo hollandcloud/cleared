@@ -12,13 +12,15 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleDisplayName</key>
+	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<!-- Cleared uses only the HTTPS the system provides, which is exempt.
+	<!-- GitCleared uses only the HTTPS the system provides, which is exempt.
 	     Declaring it here saves answering the question on every upload. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

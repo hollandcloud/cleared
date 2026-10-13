@@ -11,13 +11,13 @@ enum GitHubError: Error, LocalizedError, Sendable, Equatable {
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
-            return "Connect Cleared to GitHub first."
+            return "Connect \(AppEnvironment.name) to GitHub first."
         case .http(let status, let message):
             switch status {
             case 401: return "GitHub rejected the token. Reconnect in Settings."
             case 403:
                 if message.localizedCaseInsensitiveContains("rate limit") {
-                    return "Rate limited. Cleared will back off and retry."
+                    return "Rate limited. \(AppEnvironment.name) will back off and retry."
                 }
                 if message.localizedCaseInsensitiveContains("SAML") {
                     return "That organization requires single sign-on. Authorize the token for it on GitHub."
@@ -29,7 +29,7 @@ enum GitHubError: Error, LocalizedError, Sendable, Equatable {
             }
         case .rateLimited(let until):
             let minutes = max(1, Int((until.timeIntervalSinceNow / 60).rounded(.up)))
-            return "Rate limited. Cleared will retry in \(minutes)m."
+            return "Rate limited. \(AppEnvironment.name) will retry in \(minutes)m."
         case .transport(let detail):
             return "Couldn't reach GitHub. \(detail)"
         case .decoding(let detail):
@@ -78,7 +78,7 @@ actor GitHubClient {
             config.timeoutIntervalForRequest = 20
             config.waitsForConnectivity = false
             config.httpAdditionalHeaders = [
-                "User-Agent": "Cleared/\(AppEnvironment.version) (+https://github.com/hollandcloud/cleared)",
+                "User-Agent": "\(AppEnvironment.name)/\(AppEnvironment.version) (+https://github.com/hollandcloud/cleared)",
             ]
             self.session = URLSession(configuration: config)
         }

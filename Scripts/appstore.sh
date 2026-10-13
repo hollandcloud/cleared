@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Archives Cleared for the Mac App Store and exports the signed package that
+# Archives GitCleared for the Mac App Store and exports the signed package that
 # App Store Connect accepts.
 #
 #   make appstore
@@ -30,11 +30,11 @@ if [ -z "$team" ]; then
   exit 1
 fi
 
-archive="$HOME/Library/Developer/Xcode/Archives/$(date +%Y-%m-%d)/Cleared $version ($build) $(date +%H.%M).xcarchive"
+archive="$HOME/Library/Developer/Xcode/Archives/$(date +%Y-%m-%d)/GitCleared $version ($build) $(date +%H.%M).xcarchive"
 out=dist/appstore
 options=build/ExportOptions.plist
 
-echo "▸ Archiving Cleared $version ($build) with the AppStore configuration"
+echo "▸ Archiving GitCleared $version ($build) with the AppStore configuration"
 mkdir -p "$(dirname "$archive")" build
 xcodebuild archive -project Cleared.xcodeproj -scheme Cleared \
   -archivePath "$archive" -allowProvisioningUpdates >build/appstore-archive.log 2>&1 \
@@ -73,7 +73,7 @@ pkgutil --check-signature "$pkg" | sed -n '1,6p'
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 pkgutil --expand-full "$pkg" "$work/pkg" >/dev/null
-app=$(find "$work/pkg" -maxdepth 4 -name 'Cleared.app' | head -1)
+app=$(find "$work/pkg" -maxdepth 4 -name 'GitCleared.app' | head -1)
 entitlements=$(codesign --display --entitlements - --xml "$app" 2>/dev/null | plutil -convert json -o - - 2>/dev/null || echo '{}')
 case "$entitlements" in
   *'"com.apple.security.app-sandbox":true'*) ;;

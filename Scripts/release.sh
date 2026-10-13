@@ -23,10 +23,10 @@ cd "$(git rev-parse --show-toplevel)"
 team=${DEVELOPER_ID##*(}
 team=${team%)}
 version=$(sed -n 's/.*MARKETING_VERSION: *"\(.*\)".*/\1/p' project.yml)
-app=build/Build/Products/Release/Cleared.app
-zip=dist/Cleared-$version.zip
+app=build/Build/Products/Release/GitCleared.app
+zip=dist/GitCleared-$version.zip
 
-echo "▸ Building Cleared $version"
+echo "▸ Building GitCleared $version"
 xcodegen generate >/dev/null
 xcodebuild -project Cleared.xcodeproj -scheme Cleared -configuration Release \
   -derivedDataPath build \

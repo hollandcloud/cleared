@@ -1,6 +1,6 @@
-.PHONY: generate build test run install preview icon release dist appstore appstore-build scan clean
+.PHONY: generate build test run install preview icon screenshots release dist appstore appstore-build scan clean
 
-RELEASE_APP := build/Build/Products/Release/Cleared.app
+RELEASE_APP := build/Build/Products/Release/GitCleared.app
 INSTALL_DIR ?= /Applications
 
 generate:            ## Regenerate Cleared.xcodeproj from project.yml
@@ -22,25 +22,32 @@ run: release
 ## Build Release, replace the copy in /Applications, and launch it.
 ## Launch at login only works from an installed copy.
 install: release
+	@pkill -x GitCleared 2>/dev/null || true
+	@# The app was called Cleared until 0.4.1. Take that copy away too, or
+	@# two would be left watching the same queue.
 	@pkill -x Cleared 2>/dev/null || true
-	rm -rf "$(INSTALL_DIR)/Cleared.app"
-	ditto $(RELEASE_APP) "$(INSTALL_DIR)/Cleared.app"
-	open "$(INSTALL_DIR)/Cleared.app"
-	@echo "✓ Installed Cleared $$(defaults read "$(INSTALL_DIR)/Cleared.app/Contents/Info" CFBundleShortVersionString) to $(INSTALL_DIR)"
+	rm -rf "$(INSTALL_DIR)/GitCleared.app" "$(INSTALL_DIR)/Cleared.app"
+	ditto $(RELEASE_APP) "$(INSTALL_DIR)/GitCleared.app"
+	open "$(INSTALL_DIR)/GitCleared.app"
+	@echo "✓ Installed GitCleared $$(defaults read "$(INSTALL_DIR)/GitCleared.app/Contents/Info" CFBundleShortVersionString) to $(INSTALL_DIR)"
 
 ## Render the panel in a normal window against sample data.
 ## FIXTURE=full|overflow|empty
 ## Opens a second instance and only ever closes an earlier preview, so an
 ## installed copy that is running keeps watching.
 preview: build
-	@pkill -f 'Cleared.app/Contents/MacOS/Cleared --ui-preview' 2>/dev/null || true
+	@pkill -f 'GitCleared.app/Contents/MacOS/GitCleared --ui-preview' 2>/dev/null || true
 	@open -n "$$(xcodebuild -project Cleared.xcodeproj -scheme Cleared -configuration Debug \
-		-showBuildSettings 2>/dev/null | sed -n 's/^ *BUILT_PRODUCTS_DIR = //p')/Cleared.app" \
+		-showBuildSettings 2>/dev/null | sed -n 's/^ *BUILT_PRODUCTS_DIR = //p')/GitCleared.app" \
 		--args --ui-preview $${FIXTURE:-full}
 
 ## Redraw the app icon at every size from Scripts/make-icon.swift.
 icon:
 	swift Scripts/make-icon.swift
+
+## Frame the raw captures in Store/screenshots/raw/ for the App Store listing.
+screenshots:
+	swift Scripts/compose-screenshots.swift
 
 ## Build a Developer ID-signed, notarized zip in dist/. See Scripts/release.sh.
 dist:

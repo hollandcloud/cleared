@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1
+
+### Changed
+
+- **The app is now called GitCleared.** The bundle, its display name and every
+  place the interface names itself have changed. The bundle identifier has not,
+  so the saved token and settings carry over. `make install` removes a copy
+  installed under the old name.
+- The README is written in the tower's own language, and shows the icon.
+
 ## 0.4.0
 
 The release that makes Cleared something you can leave running.

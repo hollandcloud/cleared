@@ -50,5 +50,5 @@ jobs:
       - name: App Store build
         run: |
           make appstore-build
-          codesign --display --entitlements - --xml build/appstore/Build/Products/AppStore/Cleared.app \
+          codesign --display --entitlements - --xml build/appstore/Build/Products/AppStore/GitCleared.app \
             | plutil -convert json -o - - | grep -q '"com.apple.security.app-sandbox":true'

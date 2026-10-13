@@ -35,3 +35,6 @@ Package.resolved
 
 # Optional local signing overrides (see Local.xcconfig.example)
 Local.xcconfig
+
+# App Review contact details for Scripts/asc.py — a person's phone and email
+Store/review-contact.local.json

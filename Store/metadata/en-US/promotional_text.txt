@@ -1,0 +1,1 @@
+A deploy waiting on your approval doesn't fail. It just sits there. GitCleared tells you the moment one starts holding, and clears it from the menu bar in one click.
