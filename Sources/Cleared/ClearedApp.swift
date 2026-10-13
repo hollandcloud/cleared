@@ -46,9 +46,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 enum AppEnvironment {
     static let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
+    /// True in the App Store build. The system sets this variable for every
+    /// sandboxed process, so one binary can tell which way it was built.
+    static let isSandboxed = ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+
     /// "0.4.0" — read from the bundle so the User-Agent and the Settings
     /// footer can never drift from `MARKETING_VERSION`.
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+}
+
+private struct SandboxedBuildKey: EnvironmentKey {
+    static let defaultValue = AppEnvironment.isSandboxed
+}
+
+extension EnvironmentValues {
+    /// Whether to show the App Store build's interface. An environment value
+    /// so the preview harness can show that interface from an ordinary build.
+    var isSandboxedBuild: Bool {
+        get { self[SandboxedBuildKey.self] }
+        set { self[SandboxedBuildKey.self] = newValue }
+    }
 }
 
 #if DEBUG
@@ -61,7 +78,7 @@ extension AppDelegate {
     /// catch — so the panel would otherwise be near-impossible to iterate on.
     private func openPreview() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: Theme.panelWidth + 48, height: 820),
+            contentRect: NSRect(x: 0, y: 0, width: Theme.panelWidth + 120, height: 820),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
@@ -80,6 +97,7 @@ extension AppDelegate {
 struct PreviewHarness: View {
     enum Fixture: String, CaseIterable {
         case full = "Full queue", overflow = "Overflowing", empty = "All clear"
+        case connect = "Connect", connectAppStore = "App Store"
 
         /// Matched on the case name, not the display label — "empty" has to
         /// select `.empty`, whose label is "All clear".
@@ -88,6 +106,8 @@ struct PreviewHarness: View {
             case .full: "full"
             case .overflow: "overflow"
             case .empty: "empty"
+            case .connect: "connect"
+            case .connectAppStore: "connect-appstore"
             }
         }
 
@@ -106,7 +126,7 @@ struct PreviewHarness: View {
     init() {
         let start = Fixture.fromCommandLine()
         let model = AppModel()
-        model.loadSample(empty: start == .empty, overflow: start == .overflow)
+        Self.show(start, in: model)
         _model = SwiftUI.State(initialValue: model)
         _fixture = SwiftUI.State(initialValue: start)
     }
@@ -119,10 +139,11 @@ struct PreviewHarness: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .onChange(of: fixture) { _, new in
-                model.loadSample(empty: new == .empty, overflow: new == .overflow)
+                Self.show(new, in: model)
             }
 
             MenuPanel(model: model)
+                .environment(\.isSandboxedBuild, fixture == .connectAppStore)
                 .background(.background)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(.separator))
@@ -132,6 +153,15 @@ struct PreviewHarness: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private static func show(_ fixture: Fixture, in model: AppModel) {
+        switch fixture {
+        case .full: model.loadSample()
+        case .overflow: model.loadSample(overflow: true)
+        case .empty: model.loadSample(empty: true)
+        case .connect, .connectAppStore: model.loadConnectScreen()
+        }
     }
 }
 #endif

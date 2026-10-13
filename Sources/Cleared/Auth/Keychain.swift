@@ -16,7 +16,12 @@ enum Keychain {
         }
     }
 
-    private static let service = "net.hlnd.Cleared"
+    /// The App Store build keeps its token under a name of its own. It is
+    /// signed differently from a direct build, so it could not read that
+    /// build's item anyway — and merely trying would raise a Keychain password
+    /// prompt at launch. Separate names mean neither build ever asks for the
+    /// other's entry.
+    private static let service = AppEnvironment.isSandboxed ? "net.hlnd.Cleared.sandboxed" : "net.hlnd.Cleared"
 
     static func set(_ value: String, account: String) throws {
         let data = Data(value.utf8)

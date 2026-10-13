@@ -81,8 +81,12 @@ enum GHCLIImporter {
         "/usr/bin/gh",
     ]
 
-    static func locate() -> URL? {
-        candidatePaths.lazy
+    /// Nil in the App Store build, wherever `gh` is installed. The sandbox
+    /// lets Cleared neither run it nor read the login it keeps, so offering
+    /// the button there would only produce a failure.
+    static func locate(sandboxed: Bool = AppEnvironment.isSandboxed) -> URL? {
+        guard !sandboxed else { return nil }
+        return candidatePaths.lazy
             .filter { FileManager.default.isExecutableFile(atPath: $0) }
             .first
             .map { URL(fileURLWithPath: $0) }

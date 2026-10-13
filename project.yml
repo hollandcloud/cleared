@@ -6,11 +6,20 @@ options:
   createIntermediateGroups: true
   groupSortPosition: top
 
+# AppStore is Release plus the App Sandbox, which the Mac App Store requires.
+# It is its own configuration so the direct build stays unsandboxed — the
+# sandbox is what stops Cleared reading an existing `gh` login.
+configs:
+  Debug: debug
+  Release: release
+  AppStore: release
+
 # Cleared.xcconfig optionally includes Local.xcconfig. Pointing at
 # Local.xcconfig directly would fail on every clone that does not have one.
 configFiles:
   Debug: Cleared.xcconfig
   Release: Cleared.xcconfig
+  AppStore: Cleared.xcconfig
 
 settings:
   base:
@@ -34,6 +43,17 @@ settings:
       ENABLE_HARDENED_RUNTIME: NO
     Release:
       ENABLE_HARDENED_RUNTIME: YES
+    # Signed under whichever team will submit to the store, which need not be
+    # the one used for day-to-day builds. Both values come from Local.xcconfig
+    # and fall back to ad-hoc, so this configuration still builds on a fresh
+    # clone and in CI. Set here rather than left to the xcconfig because the
+    # day-to-day DEVELOPMENT_TEAM would otherwise apply.
+    AppStore:
+      ENABLE_HARDENED_RUNTIME: YES
+      CODE_SIGN_ENTITLEMENTS: Resources/Cleared.entitlements
+      CODE_SIGN_STYLE: Automatic
+      CODE_SIGN_IDENTITY: "$(CLEARED_APPSTORE_IDENTITY:default=-)"
+      DEVELOPMENT_TEAM: "$(CLEARED_APPSTORE_TEAM:default=)"
 
 targets:
   Cleared:
@@ -42,6 +62,7 @@ targets:
     sources:
       - path: Sources/Cleared
       - path: Resources/Assets.xcassets
+      - path: Resources/PrivacyInfo.xcprivacy
     settings:
       base:
         INFOPLIST_FILE: Resources/Info.plist
@@ -74,3 +95,7 @@ schemes:
       config: Debug
       targets:
         - ClearedTests
+    # Product → Archive in Xcode builds the sandboxed App Store configuration,
+    # so distributing to App Store Connect needs no further setup.
+    archive:
+      config: AppStore
