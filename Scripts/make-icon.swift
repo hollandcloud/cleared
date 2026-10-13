@@ -1,7 +1,9 @@
 #!/usr/bin/env swift
-// Draws Cleared's app icon and writes every size the asset catalog needs.
+// Draws GitCleared's app icon and writes every size the asset catalog needs.
 //
-//   swift Scripts/make-icon.swift
+//   swift Scripts/make-icon.swift        (or: make icon)
+//
+// Also writes docs/icon.png, the copy shown at the top of the README.
 //
 // The icon is drawn in code so it can be regenerated and reviewed like the
 // rest of the source: an amber tile — the colour of a held deployment — with
@@ -177,4 +179,10 @@ let catalog: [String: Any] = ["info": ["author": "xcode", "version": 1]]
 try JSONSerialization.data(withJSONObject: catalog, options: [.prettyPrinted, .sortedKeys])
     .write(to: output.deletingLastPathComponent().appendingPathComponent("Contents.json"))
 
-print("✓ wrote \(slots.count) sizes to \(output.path)")
+// A copy the README can show. GitHub cannot render an image out of an asset
+// catalog, and a README without the icon does not look like the app.
+let readmeIcon = URL(fileURLWithPath: "docs/icon.png")
+try FileManager.default.createDirectory(at: readmeIcon.deletingLastPathComponent(), withIntermediateDirectories: true)
+try png(pixels: 512).write(to: readmeIcon)
+
+print("✓ wrote \(slots.count) sizes to \(output.path), and \(readmeIcon.path)")
