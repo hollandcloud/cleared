@@ -30,13 +30,16 @@ The release that makes Cleared something you can leave running.
   and returns to the connect screen with an explanation.
 - **Ignoring a repository could not be undone**, and pinned repositories had no
   interface at all.
+- **Switches in Settings showed no colour when on.** macOS draws its own
+  switch grey in any window that isn't key, which a menu bar panel often isn't.
+  They are now drawn by the app and use the system accent colour.
 - "Notify on failed runs" had no effect. A newer banner could be dismissed by
   the previous banner's timer. `⌘1`–`⌘9` were attached to rows rather than to
   the Merge buttons, and every row past the ninth shared `⌘↩`.
 
 ### Added
 
-- Launch at login, an app icon, and `make install`.
+- Launch at login, an app icon (shown in Settings too), and `make install`.
 - *Clear* and *Re-run failed jobs* buttons on notifications. A hold's
   notification is withdrawn once the hold is gone.
 - Reject a held deployment, from a row's right-click menu.

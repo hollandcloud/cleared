@@ -13,7 +13,12 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(spacing: 9) {
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 30, height: 30)
+                    .accessibilityHidden(true)
                 Text("Cleared").font(.system(size: 13, weight: .semibold))
                 Spacer()
                 if let login = model.login {
@@ -21,8 +26,8 @@ struct SettingsView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.top, 12)
+            .padding(.bottom, 9)
 
             Divider()
 
@@ -35,6 +40,7 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .toggleStyle(AccentSwitchStyle())
 
             Divider()
             HStack {
@@ -166,6 +172,13 @@ struct SettingsView: View {
     }
 
     // MARK: - Pieces
+
+    /// Read from the app's own asset catalog. `NSApp.applicationIconImage`
+    /// goes through the system icon cache, which is keyed on the version and
+    /// keeps serving a previous build's icon until it happens to refresh.
+    private var appIcon: NSImage {
+        NSImage(named: "AppIcon") ?? NSApp.applicationIconImage
+    }
 
     private func caption(_ text: String) -> some View {
         Text(text)

@@ -217,8 +217,7 @@ private struct InputField: View {
             case .boolean:
                 Toggle("", isOn: Binding(get: { value == "true" }, set: { value = $0 ? "true" : "false" }))
                     .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
+                    .toggleStyle(AccentSwitchStyle())
                     .accessibilityLabel(spokenName)
                 Spacer()
             case .choice(let options):
