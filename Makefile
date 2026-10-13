@@ -1,4 +1,4 @@
-.PHONY: generate build test run install preview icon release dist appstore appstore-build scan clean
+.PHONY: generate build test run install preview icon screenshots release dist appstore appstore-build scan clean
 
 RELEASE_APP := build/Build/Products/Release/GitCleared.app
 INSTALL_DIR ?= /Applications
@@ -44,6 +44,10 @@ preview: build
 ## Redraw the app icon at every size from Scripts/make-icon.swift.
 icon:
 	swift Scripts/make-icon.swift
+
+## Frame the raw captures in Store/screenshots/raw/ for the App Store listing.
+screenshots:
+	swift Scripts/compose-screenshots.swift
 
 ## Build a Developer ID-signed, notarized zip in dist/. See Scripts/release.sh.
 dist:

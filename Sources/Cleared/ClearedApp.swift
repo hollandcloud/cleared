@@ -84,14 +84,26 @@ extension AppDelegate {
     /// deployment to actually be held — the rare event the whole app exists to
     /// catch — so the panel would otherwise be near-impossible to iterate on.
     private func openPreview() {
+        // `--bare` draws the panel and nothing else, edge to edge, for taking
+        // store screenshots: no fixture picker, no margin, no title bar.
+        let isBare = CommandLine.arguments.contains("--bare")
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: Theme.panelWidth + 120, height: 820),
-            styleMask: [.titled, .closable, .resizable],
+            styleMask: isBare ? [.titled, .fullSizeContentView] : [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "\(AppEnvironment.name) · panel preview"
-        window.contentView = NSHostingView(rootView: PreviewHarness())
+        let host = NSHostingView(rootView: PreviewHarness(isBare: isBare))
+        window.contentView = host
+        if isBare {
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+                window.standardWindowButton(button)?.isHidden = true
+            }
+            window.setContentSize(host.fittingSize)
+        }
         window.center()
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
@@ -129,8 +141,10 @@ struct PreviewHarness: View {
 
     @State private var model: AppModel
     @State private var fixture: Fixture
+    private let isBare: Bool
 
-    init() {
+    init(isBare: Bool = false) {
+        self.isBare = isBare
         let start = Fixture.fromCommandLine()
         let model = AppModel()
         Self.show(start, in: model)
@@ -139,6 +153,19 @@ struct PreviewHarness: View {
     }
 
     var body: some View {
+        if isBare {
+            MenuPanel(model: model)
+                .environment(\.isSandboxedBuild, fixture == .connectAppStore)
+                .background(.background)
+                // The transparent title bar still reserves its strip at the
+                // top; the panel should start at the very edge.
+                .ignoresSafeArea()
+        } else {
+            framed
+        }
+    }
+
+    private var framed: some View {
         VStack(spacing: 14) {
             Picker("", selection: $fixture) {
                 ForEach(Fixture.allCases, id: \.self) { Text($0.rawValue).tag($0) }

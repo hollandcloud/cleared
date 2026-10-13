@@ -1,0 +1,38 @@
+A deploy that is waiting on your approval doesn't fail. It just sits there.
+
+GitCleared is a control tower for your GitHub deployments. It lives in the menu bar and watches the repositories you work in. The moment a deployment is held at an environment gate that needs you, it tells you, and gives you the button that clears it. No browser tab, no hunting for the right run.
+
+FOUR CLEARANCES, NOTHING ELSE
+
+• Clear a held deployment. Approve an environment gate you are a required reviewer on in one click, or reject it with a reason.
+• Merge a green pull request. Only offered when checks pass, required reviews are in, and GitHub agrees nothing is in the way.
+• Re-run failed jobs. Send a failed run around again.
+• Start a workflow. Pick any workflow that can be run by hand and fill in the inputs it declares.
+
+ORDERED BY WHAT IS WAITING ON YOU
+
+The queue is not grouped by repository. A production deployment that has been holding for an hour is at the top, whichever repository it belongs to. Below it are the pull requests ready to merge, then the ones still in flight, each with the reason it is waiting: needs review, checks running, behind base branch, conflicts.
+
+ONLY BUTTONS GITHUB WILL HONOUR
+
+A merge is pinned to the exact commit GitCleared last saw. If someone pushes in between, GitHub refuses the merge rather than landing code nobody checked. The merge method follows your preference where a repository allows it, and the repository's own default where it does not.
+
+IT TELLS YOU, THEN GETS OUT OF THE WAY
+
+A notification appears when a deployment starts holding, with a Clear button on it, and is withdrawn once the hold is gone. When nothing is waiting, the menu bar shows a quiet tick and no badge. Turn on Launch at Login and the tower is staffed from the moment you sign in.
+
+LIGHT ON GITHUB'S API
+
+Repositories with nothing waiting cost nothing: GitCleared uses conditional requests, which GitHub does not count against your rate limit. It slows down while its panel is closed, and stops entirely when GitHub asks it to.
+
+PRIVATE BY DESIGN
+
+• Your token is stored in the macOS Keychain and sent only to api.github.com.
+• No account with us, no server of ours, no analytics, no tracking.
+• Open source under the MIT licence.
+
+WHAT YOU NEED
+
+A GitHub account and a personal access token with the repo scope, or a fine-grained token with Actions, Deployments, Contents and Pull requests permissions. GitCleared opens GitHub's token page for you with the right scope selected.
+
+GitCleared is an independent app. It is not affiliated with, endorsed by or sponsored by GitHub.
