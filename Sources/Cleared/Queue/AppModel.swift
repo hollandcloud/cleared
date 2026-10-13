@@ -97,7 +97,7 @@ final class AppModel {
     func start() async {
         guard !hasStarted, !isPreview else { return }
         hasStarted = true
-        Log.app.notice("starting")
+        Log.app.notice("starting\(AppEnvironment.isSandboxed ? " (sandboxed)" : "", privacy: .public)")
         guard vault.current() != nil else {
             phase = .needsToken
             return
@@ -471,6 +471,15 @@ final class AppModel {
         rateLimit = RateLimit(remaining: 4_812, limit: 5_000, resetsAt: Date().addingTimeInterval(2_400))
         lastRefresh = Date()
         phase = .ready
+    }
+
+    /// Parks the model on the connect screen, for laying that screen out.
+    func loadConnectScreen() {
+        isPreview = true
+        pollTask?.cancel()
+        pollTask = nil
+        login = nil
+        phase = .needsToken
     }
 #endif
 }

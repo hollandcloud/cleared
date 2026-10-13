@@ -50,6 +50,12 @@ The release that makes Cleared something you can leave running.
 - Timestamps in the panel tick while it is open.
 - Logging to the unified log under `net.hlnd.Cleared`.
 - CI on pull requests, and a script that produces a notarized build.
+- A sandboxed `AppStore` build configuration for the Mac App Store, which is
+  what **Product → Archive** now builds, and `make appstore` to archive and
+  export the signed package. In that build a pasted token is the only way to
+  connect, because the sandbox rules out reading a `gh` login.
+- *Create a token on GitHub…* on the connect screen, which opens the new-token
+  page with the right scope selected.
 
 ### Changed
 

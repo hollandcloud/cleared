@@ -276,6 +276,11 @@ struct TokenTests {
         #expect(!printed.contains("MNOPQRST"))
     }
 
+    @Test("the App Store build never offers the gh CLI login, even with gh installed")
+    func sandboxHidesGHImport() {
+        #expect(GHCLIImporter.locate(sandboxed: true) == nil)
+    }
+
     @Test("an empty token is rejected rather than stored")
     func rejectsEmpty() {
         #expect(throws: TokenStore.TokenError.self) {
@@ -338,6 +343,7 @@ struct PreviewArgumentTests {
 
     @Test("selects a fixture by case name, not by display label", arguments: [
         ("full", Fixture.full), ("overflow", Fixture.overflow), ("empty", Fixture.empty),
+        ("connect", Fixture.connect), ("connect-appstore", Fixture.connectAppStore),
     ])
     func selectsByKey(argument: String, expected: Fixture) {
         #expect(Fixture.fromCommandLine(["Cleared", "--ui-preview", argument]) == expected)

@@ -70,7 +70,11 @@ Cleared needs a GitHub token with the **`repo`** scope.
 
 - **If you use the `gh` CLI:** click *Use my gh CLI login*. Cleared shells out to
   `gh auth token` once and stores the result.
-- **Otherwise:** paste a [personal access token](https://github.com/settings/tokens).
+- **Otherwise:** paste a personal access token. *Create a token on GitHub…*
+  opens the new-token page with the scope already selected.
+
+The Mac App Store version only offers the second. It runs in the App Sandbox,
+which lets it neither run `gh` nor read the login `gh` keeps.
 
 The token is written to your login Keychain under `net.hlnd.Cleared` and read
 back per request. It is never written to `UserDefaults`, never written to disk
@@ -154,6 +158,7 @@ that see one PR a month get picked up without being added by hand.
 make build                      # debug build
 make test                       # unit tests
 make install                    # Release build into /Applications
+make appstore-build             # the sandboxed App Store configuration
 make preview                    # render the panel against sample data
 make preview FIXTURE=overflow   # ... with enough rows to scroll
 make preview FIXTURE=empty      # ... the all-clear state
@@ -218,6 +223,42 @@ make dist         # writes dist/Cleared-<version>.zip
 `xcrun notarytool store-credentials`. The script signs with the hardened
 runtime, submits to Apple, staples the ticket and asks Gatekeeper to confirm
 before it reports success.
+
+### Mac App Store
+
+The store requires the App Sandbox, so there is a third build configuration,
+`AppStore`: Release plus `Resources/Cleared.entitlements` (the sandbox, and
+outbound network access — nothing else). It is what the scheme archives with,
+so in Xcode it is just **Product → Archive**, then **Distribute App → App Store
+Connect**.
+
+Set the team that will submit in `Local.xcconfig` first:
+
+```
+CLEARED_APPSTORE_TEAM = YOURTEAMID
+CLEARED_APPSTORE_IDENTITY = Apple Development
+```
+
+It can be a different team from the one that signs your day-to-day builds. That
+team's Apple ID has to be signed in under Xcode → Settings → Accounts; Xcode
+then registers the bundle ID and creates the provisioning profile itself.
+
+From the command line, `make appstore` does the same archive, exports the
+signed package to `dist/appstore/Cleared.pkg`, and checks that the app inside
+is sandboxed and signed for distribution. It uploads nothing. The archive is
+written where Xcode's Organizer looks, so you can upload that same build from
+**Window → Organizer**.
+
+What differs in the sandboxed build:
+
+- No *Use my gh CLI login* — a pasted token is the only way to connect.
+- Its token is kept under a separate Keychain entry from a direct build's. The
+  two are signed differently and could not read each other's entry anyway;
+  separate names mean neither ever triggers a Keychain prompt for the other's.
+- Its settings live in the app's sandbox container, so they start fresh.
+
+`make appstore-build` builds that configuration without archiving and needs no
+signing set up. CI runs it on every pull request.
 
 ### Layout
 

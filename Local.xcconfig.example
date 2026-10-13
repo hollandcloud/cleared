@@ -12,3 +12,13 @@
 // CLEARED_SIGN_IDENTITY = Apple Development: Your Name (XXXXXXXXXX)
 // CLEARED_SIGN_STYLE = Manual
 // DEVELOPMENT_TEAM = YOURTEAMID
+
+// ── Mac App Store ────────────────────────────────────────────────────
+//
+// The AppStore configuration (what Product → Archive builds) is sandboxed and
+// can be signed under a different team from your day-to-day builds — the one
+// that holds your Apple Distribution certificate. Without these it falls back
+// to ad-hoc signing, which still builds and runs but cannot be uploaded.
+//
+// CLEARED_APPSTORE_TEAM = YOURTEAMID
+// CLEARED_APPSTORE_IDENTITY = Apple Development
