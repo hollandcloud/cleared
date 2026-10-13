@@ -50,7 +50,14 @@ enum AppEnvironment {
     /// sandboxed process, so one binary can tell which way it was built.
     static let isSandboxed = ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
 
-    /// "0.4.0" — read from the bundle so the User-Agent and the Settings
+    /// What the app calls itself, read from the bundle so the interface, the
+    /// User-Agent and the store listing cannot disagree. The code keeps its
+    /// original name, Cleared, for the module and the bundle identifier:
+    /// renaming an app is about what people see, and changing the identifier
+    /// would discard everyone's saved token and settings.
+    static let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "GitCleared"
+
+    /// "0.4.1" — read from the bundle so the User-Agent and the Settings
     /// footer can never drift from `MARKETING_VERSION`.
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
 }
@@ -83,7 +90,7 @@ extension AppDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Cleared · panel preview"
+        window.title = "\(AppEnvironment.name) · panel preview"
         window.contentView = NSHostingView(rootView: PreviewHarness())
         window.center()
         window.isReleasedWhenClosed = false

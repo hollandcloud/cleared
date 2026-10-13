@@ -31,15 +31,15 @@ struct MenuBarLabel: View {
         // The icon already distinguishes these; the label has to agree with it,
         // or VoiceOver says "all clear" over a warning triangle.
         switch model.phase {
-        case .needsToken: return "Cleared. Not connected to GitHub."
-        case .connecting: return "Cleared. Connecting."
-        case .failed: return "Cleared. Couldn't reach GitHub."
+        case .needsToken: return "\(AppEnvironment.name). Not connected to GitHub."
+        case .connecting: return "\(AppEnvironment.name). Connecting."
+        case .failed: return "\(AppEnvironment.name). Couldn't reach GitHub."
         case .ready: break
         }
-        if model.approvals.isEmpty && model.readyToMerge.isEmpty { return "Cleared. All clear." }
+        if model.approvals.isEmpty && model.readyToMerge.isEmpty { return "\(AppEnvironment.name). All clear." }
         var parts: [String] = []
         if !model.approvals.isEmpty { parts.append("\(model.approvals.count) holding") }
         if !model.readyToMerge.isEmpty { parts.append("\(model.readyToMerge.count) ready to merge") }
-        return "Cleared. " + parts.joined(separator: ", ")
+        return "\(AppEnvironment.name). " + parts.joined(separator: ", ")
     }
 }

@@ -14,12 +14,12 @@ struct ConnectView: View {
     @State private var isWorking = false
 
     /// GitHub's new-token page with the scope and a name already filled in.
-    private static let newTokenURL = URL(string: "https://github.com/settings/tokens/new?scopes=repo&description=Cleared")!
+    private static let newTokenURL = URL(string: "https://github.com/settings/tokens/new?scopes=repo&description=\(AppEnvironment.name)")!
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Cleared").font(.system(size: 15, weight: .semibold))
+                Text(AppEnvironment.name).font(.system(size: 15, weight: .semibold))
                 Text("Clear held deploys and green PRs without opening a browser.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

@@ -19,7 +19,7 @@ struct SettingsView: View {
                     .interpolation(.high)
                     .frame(width: 30, height: 30)
                     .accessibilityHidden(true)
-                Text("Cleared").font(.system(size: 13, weight: .semibold))
+                Text(AppEnvironment.name).font(.system(size: 13, weight: .semibold))
                 Spacer()
                 if let login = model.login {
                     Text("@\(login)").font(.system(size: 11)).foregroundStyle(.secondary)
@@ -44,7 +44,7 @@ struct SettingsView: View {
 
             Divider()
             HStack {
-                Text("Cleared \(AppEnvironment.version)")
+                Text("\(AppEnvironment.name) \(AppEnvironment.version)")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -66,7 +66,7 @@ struct SettingsView: View {
             if let loginItemError {
                 caption(loginItemError)
             } else if !LoginItem.isInstalled {
-                caption("Move Cleared to Applications to turn this on (make install does it). A copy in a build folder would register a path the next build removes.")
+                caption("Move \(AppEnvironment.name) to Applications to turn this on (make install does it). A copy in a build folder would register a path the next build removes.")
             }
         }
     }

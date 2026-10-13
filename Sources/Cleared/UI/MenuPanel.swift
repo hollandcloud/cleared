@@ -237,8 +237,8 @@ struct MenuPanel: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut("q", modifiers: .command)
-            .help("Quit Cleared (⌘Q)")
-            .accessibilityLabel("Quit Cleared")
+            .help("Quit \(AppEnvironment.name) (⌘Q)")
+            .accessibilityLabel("Quit \(AppEnvironment.name)")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
