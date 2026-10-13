@@ -5,8 +5,10 @@
 //
 // The icon is drawn in code so it can be regenerated and reviewed like the
 // rest of the source: an amber tile — the colour of a held deployment — with
-// the check that clears it. The check is drawn here rather than borrowed from
-// SF Symbols, which Apple's licence does not allow in an app icon.
+// an air traffic control tower on it. "Cleared" is the tower's word: nothing
+// leaves the gate until it says so. The tower is drawn here rather than
+// borrowed from SF Symbols, which has no such glyph and which Apple's licence
+// does not allow in an app icon anyway.
 
 import AppKit
 
@@ -50,11 +52,41 @@ func draw(size: CGFloat, in context: CGContext) {
     )
     context.restoreGState()
 
-    // The check, weighted to read at 16 pixels.
-    let check = CGMutablePath()
-    check.move(to: CGPoint(x: 322 * unit, y: 500 * unit))
-    check.addLine(to: CGPoint(x: 456 * unit, y: 366 * unit))
-    check.addLine(to: CGPoint(x: 712 * unit, y: 668 * unit))
+    // The tower: a stem with a wide, flat head. Every part is at least a
+    // pixel across at 16 pixels, so the silhouette survives the smallest size.
+    let centre: CGFloat = 512
+
+    /// A four-sided shape symmetric about the centre line, by its two widths.
+    func band(from bottom: CGFloat, width bottomWidth: CGFloat, to top: CGFloat, width topWidth: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        path.addLines(between: [
+            CGPoint(x: (centre - bottomWidth / 2) * unit, y: bottom * unit),
+            CGPoint(x: (centre + bottomWidth / 2) * unit, y: bottom * unit),
+            CGPoint(x: (centre + topWidth / 2) * unit, y: top * unit),
+            CGPoint(x: (centre - topWidth / 2) * unit, y: top * unit),
+        ])
+        path.closeSubpath()
+        return path
+    }
+
+    func slab(from bottom: CGFloat, to top: CGFloat, width: CGFloat, radius: CGFloat) -> CGPath {
+        CGPath(
+            roundedRect: CGRect(x: (centre - width / 2) * unit, y: bottom * unit, width: width * unit, height: (top - bottom) * unit),
+            cornerWidth: radius * unit,
+            cornerHeight: radius * unit,
+            transform: nil
+        )
+    }
+
+    // One path, filled once, so the parts cast a single shadow between them.
+    let tower = CGMutablePath()
+    tower.addPath(slab(from: 214, to: 268, width: 300, radius: 16))            // plinth
+    tower.addPath(band(from: 262, width: 168, to: 548, width: 128))            // shaft
+    tower.addPath(band(from: 534, width: 132, to: 566, width: 330))            // collar under the cab
+    tower.addPath(band(from: 560, width: 330, to: 706, width: 420))            // cab, leaning outward
+    tower.addPath(slab(from: 700, to: 748, width: 456, radius: 14))            // roof
+    tower.addPath(slab(from: 742, to: 800, width: 64, radius: 8))              // mast
+    tower.addEllipse(in: CGRect(x: (centre - 34) * unit, y: 782 * unit, width: 68 * unit, height: 68 * unit)) // beacon
 
     context.saveGState()
     context.setShadow(
@@ -62,13 +94,42 @@ func draw(size: CGFloat, in context: CGContext) {
         blur: 14 * unit,
         color: NSColor(srgbRed: 0.45, green: 0.27, blue: 0.02, alpha: 0.45).cgColor
     )
-    context.addPath(check)
-    context.setStrokeColor(NSColor.white.cgColor)
-    context.setLineWidth(92 * unit)
-    context.setLineCap(.round)
-    context.setLineJoin(.round)
-    context.strokePath()
+    context.addPath(tower)
+    context.setFillColor(NSColor.white.cgColor)
+    context.fillPath()
     context.restoreGState()
+
+    // The cab's glass: a band of the tile's own amber showing through, which
+    // follows the slant of the cab walls. Left out at 16 pixels, where it is
+    // about a pixel tall and only greys the cab; a solid head reads better.
+    func cabWidth(at y: CGFloat) -> CGFloat { 330 + (420 - 330) * (y - 560) / (706 - 560) }
+    let sill: CGFloat = 598
+    let lintel: CGFloat = 668
+    let inset: CGFloat = 56
+    if size >= 32 {
+        context.addPath(band(from: sill, width: cabWidth(at: sill) - inset, to: lintel, width: cabWidth(at: lintel) - inset))
+        context.setFillColor(NSColor(srgbRed: 0.72, green: 0.45, blue: 0.07, alpha: 1).cgColor)
+        context.fillPath()
+    }
+
+    // Mullions, only where there are pixels to draw them with.
+    if size >= 128 {
+        context.setFillColor(NSColor.white.cgColor)
+        for offset in [-96, 0, 96] as [CGFloat] {
+            // Lean each one with the wall it is nearest, like the real thing.
+            let lean = offset / 330 * (420 - 330) / 2 * (lintel - sill) / (706 - 560)
+            let mullion = CGMutablePath()
+            mullion.addLines(between: [
+                CGPoint(x: (centre + offset - 8) * unit, y: sill * unit),
+                CGPoint(x: (centre + offset + 8) * unit, y: sill * unit),
+                CGPoint(x: (centre + offset + lean + 8) * unit, y: lintel * unit),
+                CGPoint(x: (centre + offset + lean - 8) * unit, y: lintel * unit),
+            ])
+            mullion.closeSubpath()
+            context.addPath(mullion)
+        }
+        context.fillPath()
+    }
 }
 
 func png(pixels: Int) -> Data {
