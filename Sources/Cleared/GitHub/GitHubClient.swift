@@ -1,8 +1,10 @@
 import Foundation
 
-enum GitHubError: Error, LocalizedError, Sendable {
+enum GitHubError: Error, LocalizedError, Sendable, Equatable {
     case notAuthenticated
     case http(status: Int, message: String)
+    /// GitHub asked Cleared to stop for a while. `until` is when it may resume.
+    case rateLimited(until: Date)
     case transport(String)
     case decoding(String)
 
@@ -13,19 +15,31 @@ enum GitHubError: Error, LocalizedError, Sendable {
         case .http(let status, let message):
             switch status {
             case 401: return "GitHub rejected the token. Reconnect in Settings."
-            case 403: return message.contains("rate limit")
-                ? "Rate limited. Cleared will back off and retry."
-                : "That token lacks permission. It needs the repo and workflow scopes."
+            case 403:
+                if message.localizedCaseInsensitiveContains("rate limit") {
+                    return "Rate limited. Cleared will back off and retry."
+                }
+                if message.localizedCaseInsensitiveContains("SAML") {
+                    return "That organization requires single sign-on. Authorize the token for it on GitHub."
+                }
+                return "That token lacks permission. It needs the repo scope."
             case 404: return "Not found — the token may not have access to that repository."
-            case 405, 409: return message
-            case 422: return message
+            case 405, 409, 422: return message
             default: return "GitHub returned \(status). \(message)"
             }
+        case .rateLimited(let until):
+            let minutes = max(1, Int((until.timeIntervalSinceNow / 60).rounded(.up)))
+            return "Rate limited. Cleared will retry in \(minutes)m."
         case .transport(let detail):
             return "Couldn't reach GitHub. \(detail)"
         case .decoding(let detail):
             return "Unexpected response from GitHub. \(detail)"
         }
+    }
+
+    var isUnauthorized: Bool {
+        if case .http(status: 401, _) = self { return true }
+        return false
     }
 }
 
@@ -38,24 +52,46 @@ enum GitHubError: Error, LocalizedError, Sendable {
 /// time, so a quiet repository costs nothing at all.
 actor GitHubClient {
     private let session: URLSession
+    private let token: @Sendable () -> String?
+    private let now: @Sendable () -> Date
     private var cache: [String: (etag: String, data: Data)] = [:]
-    private(set) var rateLimit: RateLimit?
+    /// REST and GraphQL draw on separate budgets, so they are tracked apart.
+    private var rateLimits: [String: RateLimit] = [:]
+    private var blockedUntil: [String: Date] = [:]
 
-    init(session: URLSession? = nil) {
+    private enum Resource {
+        static let core = "core"
+        static let graphQL = "graphql"
+    }
+
+    init(
+        session: URLSession? = nil,
+        token: @escaping @Sendable () -> String? = { TokenStore.current() },
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
+        self.token = token
+        self.now = now
         if let session {
             self.session = session
         } else {
             let config = URLSessionConfiguration.ephemeral
             config.timeoutIntervalForRequest = 20
             config.waitsForConnectivity = false
-            config.httpAdditionalHeaders = ["User-Agent": "Cleared/0.3 (+https://github.com/hollandcloud/cleared)"]
+            config.httpAdditionalHeaders = [
+                "User-Agent": "Cleared/\(AppEnvironment.version) (+https://github.com/hollandcloud/cleared)",
+            ]
             self.session = URLSession(configuration: config)
         }
     }
 
-    func currentRateLimit() -> RateLimit? { rateLimit }
+    /// The REST budget — the one polling spends, and the one worth showing.
+    func currentRateLimit() -> RateLimit? { rateLimits[Resource.core] }
 
-    func clearCache() { cache.removeAll() }
+    func clearCache() {
+        cache.removeAll()
+        rateLimits.removeAll()
+        blockedUntil.removeAll()
+    }
 
     // MARK: - REST
 
@@ -64,6 +100,9 @@ actor GitHubClient {
         let status: Int
         /// True when GitHub answered 304 and this is the previously cached body.
         let notModified: Bool
+        /// The scopes a classic token carries. Nil for fine-grained tokens,
+        /// which do not report any.
+        let scopes: [String]?
     }
 
     /// Issues a REST request, reusing an ETag when one is known for this path.
@@ -74,9 +113,17 @@ actor GitHubClient {
         body: (any Encodable & Sendable)? = nil,
         useCache: Bool = false
     ) async throws -> Response {
-        guard let token = TokenStore.current() else { throw GitHubError.notAuthenticated }
+        guard let token = token() else { throw GitHubError.notAuthenticated }
         guard let url = URL(string: "https://api.github.com/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) else {
             throw GitHubError.transport("Bad URL for \(path)")
+        }
+
+        // Once GitHub has said stop, keep asking nothing until it said to
+        // resume. Retrying into a secondary limit is how a token gets flagged.
+        let resource = path == "graphql" ? Resource.graphQL : Resource.core
+        if let until = blockedUntil[resource] {
+            if until > now() { throw GitHubError.rateLimited(until: until) }
+            blockedUntil[resource] = nil
         }
 
         var request = URLRequest(url: url)
@@ -107,10 +154,19 @@ actor GitHubClient {
             throw GitHubError.transport("Malformed response")
         }
 
-        readRateLimit(from: http)
+        readRateLimit(from: http, fallbackResource: resource)
+        let scopes = http.value(forHTTPHeaderField: "X-OAuth-Scopes").map { header in
+            header.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }
 
         if http.statusCode == 304, let cached = cache[cacheKey] {
-            return Response(data: cached.data, status: 304, notModified: true)
+            return Response(data: cached.data, status: 304, notModified: true, scopes: scopes)
+        }
+
+        if let until = rateLimitRelease(from: http, data: data) {
+            blockedUntil[resource] = until
+            Log.github.notice("rate limited on \(resource, privacy: .public); resuming in \(Int(until.timeIntervalSince(self.now())))s")
+            throw GitHubError.rateLimited(until: until)
         }
 
         guard (200..<300).contains(http.statusCode) else {
@@ -121,7 +177,7 @@ actor GitHubClient {
             cache[cacheKey] = (etag, data)
         }
 
-        return Response(data: data, status: http.statusCode, notModified: false)
+        return Response(data: data, status: http.statusCode, notModified: false, scopes: scopes)
     }
 
     func get<T: Decodable & Sendable>(_ type: T.Type, _ path: String, useCache: Bool = false) async throws -> T {
@@ -152,12 +208,36 @@ actor GitHubClient {
 
     // MARK: - Helpers
 
-    private func readRateLimit(from http: HTTPURLResponse) {
+    private func readRateLimit(from http: HTTPURLResponse, fallbackResource: String) {
         guard let remaining = http.value(forHTTPHeaderField: "X-RateLimit-Remaining").flatMap(Int.init),
               let limit = http.value(forHTTPHeaderField: "X-RateLimit-Limit").flatMap(Int.init),
               let reset = http.value(forHTTPHeaderField: "X-RateLimit-Reset").flatMap(Double.init)
         else { return }
-        rateLimit = RateLimit(remaining: remaining, limit: limit, resetsAt: Date(timeIntervalSince1970: reset))
+        let resource = http.value(forHTTPHeaderField: "X-RateLimit-Resource") ?? fallbackResource
+        rateLimits[resource] = RateLimit(remaining: remaining, limit: limit, resetsAt: Date(timeIntervalSince1970: reset))
+    }
+
+    /// When GitHub is rate limiting this response, the moment it is safe to
+    /// try again; nil for every other response.
+    ///
+    /// A primary limit arrives as 403 or 429 with no budget remaining. A
+    /// secondary limit arrives as 403 or 429 with `Retry-After`, or with
+    /// neither header and only the message to go on.
+    private func rateLimitRelease(from http: HTTPURLResponse, data: Data) -> Date? {
+        guard http.statusCode == 403 || http.statusCode == 429 else { return nil }
+
+        if let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init) {
+            return now().addingTimeInterval(max(1, retryAfter))
+        }
+        if http.value(forHTTPHeaderField: "X-RateLimit-Remaining") == "0",
+           let reset = http.value(forHTTPHeaderField: "X-RateLimit-Reset").flatMap(Double.init) {
+            return max(Date(timeIntervalSince1970: reset), now().addingTimeInterval(1))
+        }
+        if http.statusCode == 429 || Self.message(from: data).localizedCaseInsensitiveContains("rate limit") {
+            // GitHub's guidance when it gives no number: wait at least a minute.
+            return now().addingTimeInterval(60)
+        }
+        return nil
     }
 
     nonisolated static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {

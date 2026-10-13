@@ -2,35 +2,64 @@ import SwiftUI
 
 @main
 struct ClearedApp: App {
-#if DEBUG
-    @NSApplicationDelegateAdaptor(PreviewLauncher.self) private var launcher
-#endif
-    @State private var model = AppModel()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
         MenuBarExtra {
-            MenuPanel(model: model)
-                .task { await model.start() }
+            MenuPanel(model: delegate.model)
         } label: {
-            MenuBarLabel(model: model)
+            MenuBarLabel(model: delegate.model)
         }
         .menuBarExtraStyle(.window)
     }
 }
 
-#if DEBUG
-/// `open Cleared.app --args --ui-preview` renders the panel in an ordinary
-/// window against sample data.
+/// Owns the model, so polling starts when the app launches.
 ///
-/// Laying out the queue against real GitHub state means waiting for a
-/// deployment to actually be held — the rare event the whole app exists to
-/// catch — so the panel would otherwise be near-impossible to iterate on.
-final class PreviewLauncher: NSObject, NSApplicationDelegate {
-    private var window: NSWindow?
+/// A window-style `MenuBarExtra` does not build its content until the icon is
+/// first clicked. Starting from the panel would mean an app launched at login
+/// watches nothing — and announces nothing — until someone opens it, which is
+/// the opposite of what a hold notifier is for.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let model = AppModel()
+#if DEBUG
+    private var previewWindow: NSWindow?
+#endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        guard CommandLine.arguments.contains("--ui-preview") else { return }
+#if DEBUG
+        if CommandLine.arguments.contains("--ui-preview") {
+            openPreview()
+            return
+        }
+#endif
+        // The unit tests run hosted inside the app. They must never read the
+        // Keychain, prompt for notifications, or reach GitHub.
+        guard !AppEnvironment.isRunningTests else { return }
 
+        Notifier.shared.attach(to: model)
+        Task { await model.start() }
+    }
+}
+
+enum AppEnvironment {
+    static let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
+    /// "0.4.0" — read from the bundle so the User-Agent and the Settings
+    /// footer can never drift from `MARKETING_VERSION`.
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+}
+
+#if DEBUG
+extension AppDelegate {
+    /// `open Cleared.app --args --ui-preview` renders the panel in an ordinary
+    /// window against sample data.
+    ///
+    /// Laying out the queue against real GitHub state means waiting for a
+    /// deployment to actually be held — the rare event the whole app exists to
+    /// catch — so the panel would otherwise be near-impossible to iterate on.
+    private func openPreview() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: Theme.panelWidth + 48, height: 820),
             styleMask: [.titled, .closable, .resizable],
@@ -44,7 +73,7 @@ final class PreviewLauncher: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        self.window = window
+        previewWindow = window
     }
 }
 

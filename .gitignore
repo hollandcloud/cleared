@@ -16,12 +16,13 @@ secrets.json
 token.txt
 
 # ── Xcode / SwiftPM build output ─────────────────────────────────────
-# BarRepo.xcodeproj is generated from project.yml by `make generate`.
+# Cleared.xcodeproj is generated from project.yml by `make generate`.
 *.xcodeproj/
 *.xcworkspace/
 xcuserdata/
 DerivedData/
 build/
+dist/
 .build/
 .swiftpm/
 *.xcuserstate

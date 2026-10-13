@@ -51,12 +51,33 @@ struct TokenStore: Sendable {
     }
 }
 
+/// Where the token is kept. The app uses the Keychain. Tests run hosted inside
+/// the app, so they supply their own — otherwise a sign-out test would delete
+/// the real token of whoever ran it.
+struct TokenVault: Sendable {
+    var current: @Sendable () -> String?
+    var save: @Sendable (String) throws -> Void
+    var clear: @Sendable () -> Void
+
+    static let keychain = TokenVault(
+        current: { TokenStore.current() },
+        save: { try TokenStore.save($0) },
+        clear: { TokenStore.clear() }
+    )
+}
+
 /// Imports the token from an existing `gh auth login`, so connecting Cleared is
 /// one click for anyone who already uses the GitHub CLI.
 enum GHCLIImporter {
+    /// A menu bar app does not inherit a shell's PATH, so the usual install
+    /// locations are checked directly.
     private static let candidatePaths = [
         "/opt/homebrew/bin/gh",
         "/usr/local/bin/gh",
+        "/opt/local/bin/gh",
+        "/run/current-system/sw/bin/gh",
+        NSHomeDirectory() + "/.nix-profile/bin/gh",
+        NSHomeDirectory() + "/.local/bin/gh",
         "/usr/bin/gh",
     ]
 
@@ -67,12 +88,17 @@ enum GHCLIImporter {
             .map { URL(fileURLWithPath: $0) }
     }
 
-    static func importToken() throws -> String {
+    /// Runs off the main actor: `gh` can take a moment to answer, and the
+    /// panel should keep drawing while it does.
+    static func importToken() async throws -> String {
         guard let gh = locate() else { throw TokenStore.TokenError.ghNotFound }
+        return try await Task.detached(priority: .userInitiated) { try readToken(from: gh) }.value
+    }
 
+    private static func readToken(from gh: URL) throws -> String {
         let process = Process()
         process.executableURL = gh
-        process.arguments = ["auth", "token"]
+        process.arguments = ["auth", "token", "--hostname", "github.com"]
         process.standardInput = FileHandle.nullDevice
 
         let out = Pipe()

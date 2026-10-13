@@ -23,7 +23,12 @@ struct MergeReadinessTests {
     private func pr(
         checks: CheckState = .success,
         mergeable: String = "mergeable",
-        draft: Bool = false
+        draft: Bool = false,
+        state: MergeState = .clean,
+        review: ReviewDecision? = nil,
+        queued: Bool = false,
+        allowed: [MergeMethod] = [],
+        repoDefault: MergeMethod? = nil
     ) -> PullRequestSummary {
         PullRequestSummary(
             repo: RepoRef(owner: "o", name: "r"),
@@ -34,7 +39,12 @@ struct MergeReadinessTests {
             checkState: checks,
             mergeable: mergeable,
             htmlURL: URL(string: "https://github.com/o/r/pull/1")!,
-            updatedAt: Date()
+            updatedAt: Date(),
+            mergeState: state,
+            reviewDecision: review,
+            isInMergeQueue: queued,
+            allowedMethods: allowed,
+            repoDefaultMethod: repoDefault
         )
     }
 
@@ -68,6 +78,51 @@ struct MergeReadinessTests {
         #expect(!blocked.isReadyToMerge)
         #expect(blocked.blockReason == reason)
     }
+
+    @Test("green checks are not enough when GitHub's own rules still block the merge", arguments: [
+        (MergeState.blocked, ReviewDecision.reviewRequired as ReviewDecision?, "needs review"),
+        (MergeState.blocked, ReviewDecision.changesRequested, "changes requested"),
+        (MergeState.blocked, ReviewDecision.approved, "blocked by branch rules"),
+        (MergeState.blocked, nil, "blocked by branch rules"),
+        (MergeState.behind, nil, "behind base branch"),
+        (MergeState.dirty, nil, "conflicts"),
+        (MergeState.unknown, nil, "GitHub is still checking"),
+    ])
+    func branchRulesBlock(state: MergeState, review: ReviewDecision?, reason: String) {
+        let blocked = pr(state: state, review: review)
+        #expect(!blocked.isReadyToMerge)
+        #expect(blocked.blockReason == reason)
+    }
+
+    @Test("an approved pull request in a clean state is ready", arguments: [MergeState.clean, .hasHooks, .unstable])
+    func approvedIsReady(state: MergeState) {
+        #expect(pr(state: state, review: .approved).isReadyToMerge)
+    }
+
+    @Test("a pull request already in the merge queue has no merge button")
+    func queuedIsNotOffered() {
+        #expect(pr(queued: true).blockReason == "in merge queue")
+    }
+
+    @Test("mergeability GitHub has not computed yet is not treated as mergeable")
+    func unknownMergeability() {
+        let pending = pr(mergeable: "unknown")
+        #expect(!pending.isReadyToMerge)
+        #expect(pending.blockReason == "GitHub is still checking")
+    }
+
+    @Test("the preferred merge method is used wherever the repository allows it")
+    func prefersConfiguredMethod() {
+        #expect(pr(allowed: [.squash, .merge, .rebase]).mergeMethod(preferring: .rebase) == .rebase)
+        // Nothing known about the repository: trust the preference.
+        #expect(pr().mergeMethod(preferring: .merge) == .merge)
+    }
+
+    @Test("a repository that forbids the preferred method gets its own default instead")
+    func fallsBackToRepoDefault() {
+        #expect(pr(allowed: [.merge, .rebase], repoDefault: .rebase).mergeMethod(preferring: .squash) == .rebase)
+        #expect(pr(allowed: [.merge], repoDefault: .squash).mergeMethod(preferring: .rebase) == .merge)
+    }
 }
 
 @Suite("Pending approval")
@@ -90,6 +145,107 @@ struct PendingApprovalTests {
         #expect(item.environmentNames == "production, prod-eu")
         #expect(item.environmentIDs == [1, 2])
         #expect(item.id == "o/r#42")
+    }
+
+    @Test("the same run held at a different gate is a new thing to announce")
+    func announcementKeyTracksTheGate() {
+        let staging = approval(environments: [.init(id: 1, name: "staging")])
+        let production = approval(environments: [.init(id: 2, name: "production")])
+        #expect(staging.id == production.id)
+        #expect(staging.announcementKey != production.announcementKey)
+        #expect(staging.announcementKey == approval(environments: [.init(id: 1, name: "renamed")]).announcementKey)
+    }
+}
+
+@Suite("Announcements")
+struct AnnouncementLedgerTests {
+    @Test("a hold already waiting at launch is announced; an old failure is not")
+    func firstSight() {
+        var holds = AnnouncementLedger()
+        var failures = AnnouncementLedger()
+        #expect(holds.fresh(in: ["a", "b"], announceFirstSight: true) == ["a", "b"])
+        #expect(failures.fresh(in: ["a", "b"], announceFirstSight: false).isEmpty)
+    }
+
+    @Test("each item is announced once, however many polls see it")
+    func announcesOnce() {
+        var ledger = AnnouncementLedger()
+        _ = ledger.fresh(in: ["a"], announceFirstSight: true)
+        #expect(ledger.fresh(in: ["a"], announceFirstSight: true).isEmpty)
+        #expect(ledger.fresh(in: ["a", "b"], announceFirstSight: true) == ["b"])
+    }
+
+    @Test("something that leaves and comes back is announced again")
+    func reannouncesAfterLeaving() {
+        var ledger = AnnouncementLedger()
+        _ = ledger.fresh(in: ["a"], announceFirstSight: true)
+        _ = ledger.fresh(in: [], announceFirstSight: true)
+        #expect(ledger.fresh(in: ["a"], announceFirstSight: true) == ["a"])
+    }
+
+    @Test("reports what has gone, so its notification can be withdrawn")
+    func reportsDepartures() {
+        var ledger = AnnouncementLedger()
+        #expect(ledger.departed(from: ["a"]).isEmpty)
+        _ = ledger.fresh(in: ["a", "b"], announceFirstSight: true)
+        #expect(ledger.departed(from: ["b"]) == ["a"])
+    }
+}
+
+@MainActor
+@Suite("Settings")
+struct SettingsTests {
+    private let scratch = ScratchSettings()
+    private var settings: Settings { scratch.settings }
+
+    @Test("ships with one-click actions and squash merges")
+    func defaults() {
+        #expect(settings.approvalInterval == 30)
+        #expect(settings.backgroundMultiplier == 4)
+        #expect(settings.mergeMethod == .squash)
+        #expect(settings.confirmActions == false)
+        #expect(settings.notifyOnHold)
+        #expect(settings.notifyOnFailure == false)
+    }
+
+    @Test("the poll interval is kept inside sane bounds")
+    func clampsInterval() {
+        settings.approvalInterval = 1
+        #expect(settings.approvalInterval == 10)
+        settings.approvalInterval = 9_000
+        #expect(settings.approvalInterval == 300)
+    }
+
+    @Test("the merge method survives a round trip")
+    func storesMergeMethod() {
+        settings.mergeMethod = .rebase
+        #expect(settings.mergeMethod == .rebase)
+    }
+
+    @Test("an ignored repository can be watched again")
+    func ignoreIsReversible() {
+        settings.setExcluded(true, "acme/web")
+        #expect(settings.excludedRepos == ["acme/web"])
+        settings.setExcluded(false, "acme/web")
+        #expect(settings.excludedRepos.isEmpty)
+    }
+
+    @Test("pinning accepts owner/name, once, and un-ignores it")
+    func pins() {
+        settings.setExcluded(true, "acme/quiet")
+        #expect(settings.pin("  acme/quiet\n"))
+        #expect(settings.pin("ACME/Quiet"))
+        #expect(settings.pinnedRepos == ["acme/quiet"])
+        #expect(settings.excludedRepos.isEmpty)
+
+        settings.unpin("acme/quiet")
+        #expect(settings.pinnedRepos.isEmpty)
+    }
+
+    @Test("pinning rejects anything that is not owner/name", arguments: ["", "nope", "a/b/c", "https://github.com/acme/web"])
+    func rejectsBadPins(input: String) {
+        #expect(settings.pin(input) == false)
+        #expect(settings.pinnedRepos.isEmpty)
     }
 }
 
@@ -142,10 +298,22 @@ struct RateLimitTests {
 
 @Suite("Error messages")
 struct ErrorMessageTests {
-    @Test("a 403 about scopes tells you which scopes")
+    @Test("a 403 about scopes tells you which scope")
     func scopeMessage() {
         let error = GitHubError.http(status: 403, message: "Resource not accessible")
-        #expect(error.localizedDescription.contains("repo and workflow"))
+        #expect(error.localizedDescription.contains("repo scope"))
+    }
+
+    @Test("a 403 from an SSO-protected organization says to authorize the token")
+    func ssoMessage() {
+        let error = GitHubError.http(status: 403, message: "Resource protected by organization SAML enforcement.")
+        #expect(error.localizedDescription.contains("single sign-on"))
+    }
+
+    @Test("a rate limit says how long until Cleared tries again")
+    func rateLimitedMessage() {
+        let error = GitHubError.rateLimited(until: Date().addingTimeInterval(11 * 60 + 30))
+        #expect(error.localizedDescription.contains("12m"))
     }
 
     @Test("a 403 about rate limits says so instead")

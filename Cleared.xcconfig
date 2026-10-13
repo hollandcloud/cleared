@@ -1,0 +1,6 @@
+// Build settings shared by every configuration.
+//
+// Local.xcconfig is optional and gitignored. The `?` makes the include a
+// no-op when the file is absent, so a fresh clone builds with ad-hoc signing
+// and nothing to set up. See Local.xcconfig.example for what it can override.
+#include? "Local.xcconfig"

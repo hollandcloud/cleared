@@ -46,6 +46,7 @@ enum SampleData {
             pr(repos[1], 117, "refactor(web): collapse the settings form into one grid", .pending, "mergeable"),
             pr(repos[2], 55, "feat(infra): self-hosted runner pool", .failure, "mergeable"),
             pr(repos[0], 409, "docs: rewrite the contributing guide", .success, "conflicting"),
+            pr(repos[2], 54, "feat(infra): rotate the deploy keys", .success, "mergeable", review: .reviewRequired),
         ]
     }
 
@@ -70,9 +71,40 @@ enum SampleData {
         ]
     }
 
+    /// A repository's startable workflows, covering every kind of input the
+    /// dispatch sheet has to draw.
+    static var catalog: WorkflowCatalog {
+        WorkflowCatalog(
+            defaultBranch: "main",
+            workflows: [
+                DispatchableWorkflow(
+                    repo: repos[0],
+                    workflowID: 1,
+                    name: "Deploy",
+                    path: ".github/workflows/deploy.yml",
+                    inputs: [
+                        WorkflowInput(
+                            name: "environment",
+                            description: "Where to deploy.",
+                            kind: .choice(["staging", "production"]),
+                            isRequired: true,
+                            defaultValue: "staging"
+                        ),
+                        WorkflowInput(name: "version", description: "Tag to ship, e.g. v1.2.3.", kind: .string, isRequired: true, defaultValue: ""),
+                        WorkflowInput(name: "dry_run", description: "Plan only; change nothing.", kind: .boolean, isRequired: false, defaultValue: "true"),
+                        WorkflowInput(name: "replicas", description: "", kind: .number, isRequired: false, defaultValue: "3"),
+                    ]
+                ),
+                DispatchableWorkflow(repo: repos[0], workflowID: 2, name: "Nightly rebuild", path: ".github/workflows/nightly.yml"),
+                DispatchableWorkflow(repo: repos[0], workflowID: 3, name: "Rotate credentials", path: ".github/workflows/rotate.yml"),
+            ]
+        )
+    }
+
     private static func pr(
         _ repo: RepoRef, _ number: Int, _ title: String,
-        _ checks: CheckState, _ mergeable: String
+        _ checks: CheckState, _ mergeable: String,
+        review: ReviewDecision? = nil
     ) -> PullRequestSummary {
         PullRequestSummary(
             repo: repo,
@@ -83,7 +115,9 @@ enum SampleData {
             checkState: checks,
             mergeable: mergeable,
             htmlURL: URL(string: "https://github.com/\(repo.fullName)/pull/\(number)")!,
-            updatedAt: Date().addingTimeInterval(-Double(number) * 60)
+            updatedAt: Date().addingTimeInterval(-Double(number) * 60),
+            mergeState: review == .reviewRequired ? .blocked : .clean,
+            reviewDecision: review
         )
     }
 }
