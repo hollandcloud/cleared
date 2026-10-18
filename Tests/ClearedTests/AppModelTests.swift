@@ -4,17 +4,24 @@ import Foundation
 
 /// Settings backed by a throwaway defaults domain, so a test never reads or
 /// writes the preferences of the person running it.
+///
+/// The suite name is an absolute path in the temporary directory, which
+/// CFPreferences stores as a plain plist file there. A named suite would live in
+/// ~/Library/Preferences, and `removePersistentDomain` empties it but leaves the
+/// plist behind, so every test run used to add one file per test.
 @MainActor
 final class ScratchSettings {
     let settings: Settings
-    private let domain = "ClearedTests.\(UUID().uuidString)"
+    private let path = FileManager.default.temporaryDirectory
+        .appending(path: "ClearedTests.\(UUID().uuidString)").path
 
     init() {
-        settings = Settings(defaults: UserDefaults(suiteName: domain)!)
+        settings = Settings(defaults: UserDefaults(suiteName: path)!)
     }
 
     deinit {
-        UserDefaults.standard.removePersistentDomain(forName: domain)
+        // Best effort: anything left over sits in the temporary directory, which the system clears.
+        try? FileManager.default.removeItem(atPath: path + ".plist")
     }
 }
 
